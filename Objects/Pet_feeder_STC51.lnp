@@ -1,0 +1,5 @@
+".\Objects\MAIN.obj",
+".\Objects\DHT11.obj",
+".\Objects\lcd.obj" 
+TO ".\Objects\Pet_feeder_STC51" 
+PRINT(".\Listings\Pet_feeder_STC51.m51") RAMSIZE(256) 

@@ -1,0 +1,256 @@
+C51 COMPILER V9.60.0.0   MAIN                                                              02/28/2022 18:02:02 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\MAIN.obj
+COMPILER INVOKED BY: D:\Code\ARM\C51\BIN\C51.EXE MAIN.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LIB\DHT11;.\LIB\LCD) DEBUG OBJ
+                    -ECTEXTEND PRINT(.\Listings\MAIN.lst) TABS(2) OBJECT(.\Objects\MAIN.obj)
+
+line level    source
+
+   1          
+   2          #include <reg51.h>
+   3          #include "lcd.h"
+   4          #include<intrins.h>
+   5          #include<stdio.h>
+   6          #include "DHT11.h"
+   7          
+   8          sbit LED1 = P1^3;
+   9          sbit BEEP = P2^1;
+  10          //变量声明
+  11          
+  12          //----------------DHT11数据变量区-------------------------------
+  13          unsigned int rec_dat[4];
+  14          unsigned char rec_dat_lcd0[6];
+  15          unsigned char rec_dat_lcd1[6];
+  16          unsigned char rec_dat_lcd2[6];
+  17          unsigned char rec_dat_lcd3[6];
+  18          
+  19          //----------------温度阈值----------------
+  20          
+  21          unsigned int Temp_High_threshold=30;
+  22          unsigned int Temp_LOW_threshold=20;
+  23          //----------------定时器变量区-------------------------------
+  24          
+  25          
+  26          //定时时间投喂
+  27          int TIME_50ms_count;
+  28          int TIME_50ms_des=15*1.6;     //以秒为单位
+  29          
+  30          
+  31          //定时时间投喂
+  32          int Motor_TIME_50ms_count;
+  33          int Motor_TIME_50ms_des=10*1.6;     //电机运行时间
+  34          
+  35          
+  36          unsigned int Time_Mod=0;    // 0:定时模式  1:出食模式     
+  37          unsigned int Time_Mod_B=0;    // 模式缓冲标志位  0完成事件  1未完成事件
+  38          
+  39          
+  40          
+  41          //函数声明
+  42          void key_scanf(void);
+  43          void gx_teep(void);
+  44          void DHT11_delay_ms(unsigned int z);
+  45          void DHT11_start();
+  46          unsigned char DHT11_rec_byte();
+  47          void DHT11_receive();
+  48          
+  49          //定时器0初始化
+  50          void Time0_inint(void);
+  51          
+  52          
+  53          //出食量
+  54          int PWM_COT=9600*1;
+C51 COMPILER V9.60.0.0   MAIN                                                              02/28/2022 18:02:02 PAGE 2   
+
+  55            
+  56          int PWM_COT_C=0;
+  57          sbit _4IN =   P2^0;//
+  58          sbit key_s2 = P3^0;
+  59          sbit key_s3 = P3^1;
+  60          
+  61          void delay(unsigned int z)//毫秒级延时
+  62          {
+  63   1        unsigned int x,y;
+  64   1        for(x = z; x > 0; x--)
+  65   1          for(y = 114; y > 0 ; y--);
+  66   1      }
+  67          
+  68          
+  69          //定时器0中断
+  70          void timer0() interrupt 1
+  71          {
+  72   1        
+  73   1        
+  74   1        if(Time_Mod==0)
+  75   1        {
+  76   2      
+  77   2          TIME_50ms_count++;
+  78   2          if(TIME_50ms_count==20*TIME_50ms_des)
+  79   2          {
+  80   3            Time_Mod=1;
+  81   3            TIME_50ms_count=0;
+  82   3              
+  83   3          }
+  84   2          
+  85   2          
+  86   2        }
+  87   1        if(Time_Mod==1)
+  88   1        {
+  89   2          
+  90   2          Motor_TIME_50ms_count++;
+  91   2          if(Motor_TIME_50ms_count>20*Motor_TIME_50ms_des)
+  92   2          {
+  93   3                
+  94   3            Time_Mod=0;
+  95   3            Motor_TIME_50ms_count=0;
+  96   3          }
+  97   2          
+  98   2          
+  99   2        } 
+ 100   1      //  
+ 101   1      ////  if(TIME_50ms_count % 20==0 || Motor_TIME_50ms_count % 20==0 )
+ 102   1      ////  {
+ 103   1      ////    
+ 104   1      ////    
+ 105   1      ////  }
+ 106   1              
+ 107   1      }
+ 108          
+ 109          
+ 110          void main()
+ 111          {
+ 112   1        
+ 113   1        _4IN = 0;
+ 114   1        P1=0xf0;
+ 115   1        InitLcd1602();
+ 116   1      //  LcdShowStr(0,0,"Humi:");
+C51 COMPILER V9.60.0.0   MAIN                                                              02/28/2022 18:02:02 PAGE 3   
+
+ 117   1        LcdShowStr(0,1,"Temp:");
+ 118   1        gx_teep();
+ 119   1        //Timer1Init();     //时间
+ 120   1        Time0_inint();
+ 121   1        _4IN = 0;
+ 122   1        while(1)
+ 123   1        {
+ 124   2        
+ 125   2          if(Time_Mod==0)
+ 126   2          {
+ 127   3            _4IN=0;   //启动电机
+ 128   3      
+ 129   3          }
+ 130   2          if(Time_Mod==1)     //出食模式
+ 131   2          {
+ 132   3            
+ 133   3            _4IN=1;   //启动电机
+ 134   3          }
+ 135   2      
+ 136   2      gx_teep();
+ 137   2      
+ 138   2            if((rec_dat[2]>=Temp_High_threshold) | (Temp_LOW_threshold>rec_dat[2])) //温度阈值判断
+ 139   2            {
+ 140   3              
+ 141   3              BEEP=0;   //打开蜂鸣器报警
+ 142   3              
+ 143   3              
+ 144   3            }else{
+ 145   3              BEEP=1;   //关闭蜂鸣器报警
+ 146   3              
+ 147   3              
+ 148   3            }
+ 149   2          
+ 150   2          DHT11_delay_ms(500);
+ 151   2      
+ 152   2            
+ 153   2        }
+ 154   1      }
+ 155          
+ 156          
+ 157          void Time0_inint(){
+ 158   1        
+ 159   1          //配置时间
+ 160   1         TMOD &= 0xF0;    //设置定时器模式
+ 161   1        TL0 = 0x00;   //设置定时初始值
+ 162   1        TH0 = 0x4C;   //设置定时初始值
+ 163   1          
+ 164   1          ET0=1;  //打开定时器中断
+ 165   1          EA=1; //打开总中断
+ 166   1          TR0=1;  //启动定时器
+ 167   1      }
+ 168          
+ 169          ////按键扫描
+ 170          //void key_scanf()
+ 171          //{
+ 172          //    if(key_s2 == 0)  //S2按下LED变暗
+ 173          //    {
+ 174          //      delay(5);
+ 175          //      if(key_s2 == 0)
+ 176          //      {
+ 177          //        if(pwm_motor_val < 250)
+ 178          //        {
+C51 COMPILER V9.60.0.0   MAIN                                                              02/28/2022 18:02:02 PAGE 4   
+
+ 179          //          pwm_motor_val++;
+ 180          //        }
+ 181          //      }
+ 182          //    }
+ 183          //    if(key_s3 == 0) //S3按键LED变亮
+ 184          //    {
+ 185          //      delay(5);
+ 186          //      if(key_s3 == 0)
+ 187          //      {
+ 188          //        if(pwm_motor_val > 0)
+ 189          //        {
+ 190          //          pwm_motor_val--;
+ 191          //        }
+ 192          //      }
+ 193          //    } 
+ 194          //  
+ 195          //  
+ 196          //  
+ 197          //}
+ 198          //更新温度
+ 199          void gx_teep()
+ 200          {
+ 201   1      
+ 202   1          TR0=0;
+ 203   1          DHT11_delay_ms(20);
+ 204   1          DHT11_receive();
+ 205   1      
+ 206   1          
+ 207   1      //    sprintf(rec_dat_lcd0,"%d",rec_dat[0]);
+ 208   1      //    sprintf(rec_dat_lcd1,"%d",rec_dat[1]);
+ 209   1          sprintf(rec_dat_lcd2,"%d",rec_dat[2]);
+ 210   1          sprintf(rec_dat_lcd3,"%d",rec_dat[3]);
+ 211   1          DHT11_delay_ms(13);
+ 212   1          
+ 213   1      //    //湿度
+ 214   1      //    LcdShowStr(6,0,rec_dat_lcd0);
+ 215   1      //    LcdShowStr(8,0,".");
+ 216   1      //    LcdShowStr(9,0,rec_dat_lcd1);
+ 217   1      //    LcdShowStr(10,0," %");
+ 218   1          
+ 219   1          //温度
+ 220   1          LcdShowStr(6,1,rec_dat_lcd2);
+ 221   1          LcdShowStr(8,1,".");
+ 222   1          LcdShowStr(9,1,rec_dat_lcd3);
+ 223   1          LcdShowStr(10,1," C");
+ 224   1          TR0=1;
+ 225   1      
+ 226   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    406    ----
+   CONSTANT SIZE    =     14    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     52    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
