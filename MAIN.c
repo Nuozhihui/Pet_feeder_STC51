@@ -1,11 +1,29 @@
 
+
+
+/*************************************************************************
+ * Copyright (c) 2022,  WU JINCHANG
+ * All rights reserved.
+ * 
+ * File name    :   MAIN.c
+ * Brief        :   Pet_feeder code.
+ *               Introduce the main function or content of this document briefly.
+ * Revision     :   1.1
+ * Author       :   WU JINCHANG
+ * Date         :   2022.03.21
+ * Update       :   Itroduce the difference from previous version.
+ * Website      :		http://hinuohui.com/
+*************************************************************************/
+
+
 #include <reg51.h>
 #include "lcd.h"
 #include<intrins.h>
 #include<stdio.h>
 #include "DHT11.h"
 
-sbit LED1 = P1^3;
+//位定义
+sbit _4IN = 	P2^0;				//电机控制IO
 sbit BEEP = P2^1;
 //变量声明
 
@@ -50,13 +68,7 @@ void DHT11_receive();
 void Time0_inint(void);
 
 
-//出食量
-int PWM_COT=9600*1;
-	
-int PWM_COT_C=0;
-sbit _4IN = 	P2^0;//
-sbit key_s2 = P3^0;
-sbit key_s3 = P3^1;
+
 
 void delay(unsigned int z)//毫秒级延时
 {
@@ -70,39 +82,35 @@ void delay(unsigned int z)//毫秒级延时
 void timer0() interrupt 1
 {
 	
-	
-	if(Time_Mod==0)
+		
+	if(Time_Mod==0)		//定时模式
 	{
-
+	//定时器最大周期65，此程序使用50ms中断
 		TIME_50ms_count++;
-		if(TIME_50ms_count==20*TIME_50ms_des)
+		if(TIME_50ms_count==20*TIME_50ms_des)		//20次* 50ms =1秒
 		{
-			Time_Mod=1;
-			TIME_50ms_count=0;
+			Time_Mod=1;						//进入出食模式
+			TIME_50ms_count=0;		//计数清零
 				
 		}
 		
 		
 	}
-	if(Time_Mod==1)
+	if(Time_Mod==1)									//出食模式
 	{
-		
+		//定时器最大周期65，此程序使用50ms中断
 		Motor_TIME_50ms_count++;
-		if(Motor_TIME_50ms_count>20*Motor_TIME_50ms_des)
+		
+		if(Motor_TIME_50ms_count>20*Motor_TIME_50ms_des)	//定时器最大周期65，此程序使用50ms中断
 		{
 					
-			Time_Mod=0;
-			Motor_TIME_50ms_count=0;
+			Time_Mod=0;									//进入定时模式
+			Motor_TIME_50ms_count=0		//计数清零
 		}
 		
 		
 	}	
-//	
-////	if(TIME_50ms_count % 20==0 || Motor_TIME_50ms_count % 20==0 )
-////	{
-////		
-////		
-////	}
+
 				
 }
 
@@ -110,21 +118,19 @@ void timer0() interrupt 1
 void main()
 {
 	
-	_4IN = 0;
+	_4IN = 0;			//上电保证不会转,强制拉低
 	P1=0xf0;
-	InitLcd1602();
-//	LcdShowStr(0,0,"Humi:");
-	LcdShowStr(0,1,"Temp:");
-	gx_teep();
-	//Timer1Init();			//时间
-	Time0_inint();
-	_4IN = 0;
+	InitLcd1602();						//初始化LCD
+	LcdShowStr(0,1,"Temp:");	//更新画面
+	gx_teep();			//更新时间
+	Time0_inint();	//定时器0配置初始化
+	_4IN = 0;				//上电保证不会转,强制拉低
 	while(1)
 	{
-	
-		if(Time_Mod==0)
+	//判断模式
+		if(Time_Mod==0)		//定时模式
 		{
-			_4IN=0;		//启动电机
+			_4IN=0;		//关闭电机
 
 		}
 		if(Time_Mod==1)			//出食模式
@@ -133,20 +139,23 @@ void main()
 			_4IN=1;		//启动电机
 		}
 
-gx_teep();
+		//更新天气
+		gx_teep();
 
-			if((rec_dat[2]>=Temp_High_threshold) | (Temp_LOW_threshold>rec_dat[2]))	//温度阈值判断
-			{
-				
-				BEEP=0;		//打开蜂鸣器报警
-				
-				
-			}else{
-				BEEP=1;		//关闭蜂鸣器报警
-				
-				
-			}
+		//温度报警检测
+		if((rec_dat[2]>=Temp_High_threshold) | (Temp_LOW_threshold>rec_dat[2]))	//温度阈值判断
+		{
+			
+			BEEP=0;		//打开蜂鸣器报警
+			
+			
+		}else{
+			BEEP=1;		//关闭蜂鸣器报警
+			
+			
+		}
 		
+		//while 循环太快，经常打断定时器，此处500可以根据实际情况调节	，不可太低
 		DHT11_delay_ms(500);
 
 			
@@ -154,6 +163,7 @@ gx_teep();
 }
 
 
+//定时器0配置
 void Time0_inint(){
 	
     //配置时间
@@ -166,61 +176,27 @@ void Time0_inint(){
     TR0=1;	//启动定时器
 }
 
-////按键扫描
-//void key_scanf()
-//{
-//		if(key_s2 == 0)	 //S2按下LED变暗
-//		{
-//			delay(5);
-//			if(key_s2 == 0)
-//			{
-//				if(pwm_motor_val < 250)
-//				{
-//					pwm_motor_val++;
-//				}
-//			}
-//		}
-//		if(key_s3 == 0)	//S3按键LED变亮
-//		{
-//			delay(5);
-//			if(key_s3 == 0)
-//			{
-//				if(pwm_motor_val > 0)
-//				{
-//					pwm_motor_val--;
-//				}
-//			}
-//		}	
-//	
-//	
-//	
-//}
-//更新温度
+
+//更新温度,显示到LCD
 void gx_teep()
 {
 
-		TR0=0;
+		TR0=0;	//关闭定时器	
 		DHT11_delay_ms(20);
 		DHT11_receive();
 
-		
-//		sprintf(rec_dat_lcd0,"%d",rec_dat[0]);
-//		sprintf(rec_dat_lcd1,"%d",rec_dat[1]);
+	
 		sprintf(rec_dat_lcd2,"%d",rec_dat[2]);
 		sprintf(rec_dat_lcd3,"%d",rec_dat[3]);
 		DHT11_delay_ms(13);
 		
-//		//湿度
-//		LcdShowStr(6,0,rec_dat_lcd0);
-//		LcdShowStr(8,0,".");
-//		LcdShowStr(9,0,rec_dat_lcd1);
-//		LcdShowStr(10,0," %");
+
 		
 		//温度
 		LcdShowStr(6,1,rec_dat_lcd2);
 		LcdShowStr(8,1,".");
 		LcdShowStr(9,1,rec_dat_lcd3);
 		LcdShowStr(10,1," C");
-		TR0=1;
+		TR0=1;//打开定时器	
 
 }
